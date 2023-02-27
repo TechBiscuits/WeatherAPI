@@ -1,2 +1,3 @@
 # WeatherAPI
-Free and Open Source Weather API. Aggregates data from multiple API's and combines them.
+## Free and Open Source Weather API. 
+### Aggregates data from multiple API's and combines them into one reliable data source for weather applications 
