@@ -1,4 +1,15 @@
-[Dependencies]
-actix-rt = "2.2.0"
-actix-cors = "0.5.4"
+[package]
+name = "weather_api"
+version = "0.1.0"
+edition = "2021"
 
+[[bin]]
+name = "weather_api"
+path = "main.rs"
+
+[dependencies]
+actix-web = "4.3.1"
+dotenv = "0.15.0"
+reqwest = "0.11.14"
+serde = {version = "*", features = ["derive"]}
+serde_json = "1.0.93"
