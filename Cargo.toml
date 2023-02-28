@@ -1,0 +1,4 @@
+[Dependencies]
+actix-rt = "2.2.0"
+actix-cors = "0.5.4"
+
