@@ -60,18 +60,82 @@ async fn get_weather_locations(query: web::Query<WeatherLocationQuery>) -> impl 
 async fn get_weather_data_by_id(query: web::Query<WeatherDataQuery>) -> impl Responder {
     let api_key: String = get_api_key();
     if query.forecast.is_some() {
-        web::Json(json!({
-            "status": false,
-            "error": {
-                "code": 400,
-                "message": "Forecast is not yet supported"
-            },
-            "query": {
-                "id": query.id,
-                "forecast": query.forecast
-            },
-            "data": []
-        }))
+        let mut forecast = query.forecast.to_owned().unwrap();
+            
+        if forecast.contains("d") {
+            forecast.retain(|c| !c.is_alphabetic());
+            // check if the forecast is valid
+            if forecast.parse::<i32>().unwrap() > 10 {
+                return web::Json(json!({
+                    "status": false,
+                    "error": {
+                        "code": 400,
+                        "message": "Bad Request",
+                        "description": "The forecast can't be more than 10 days"
+                    },
+                    "query": {
+                        "id": query.id,
+                        "forecast": query.forecast
+                    },
+                    "data": []
+                }))
+            }
+            let client: Client = reqwest::Client::new();
+            let res = client.get("https://api.weatherapi.com/v1/forecast.json")
+                .query(&[("key", api_key), ("q", query.id.to_string()), ("days", forecast)])
+                .send()
+                .await
+                .unwrap()
+                .text()
+                .await
+                .unwrap();
+
+            // error catch
+            if res.contains("error") {
+                let parsed: serde_json::Value = serde_json::from_str(&res).unwrap();
+                return web::Json(json!({
+                    "status": false,
+                    "error": {
+                        "code": parsed["error"]["code"],
+                        "message": parsed["error"]["message"]
+                    },
+                    "query": {
+                        "id": query.id,
+                        "forecast": query.forecast
+                    },
+                    "data": []
+                }))
+            } else {
+                let parsed: serde_json::Value = serde_json::from_str(&res).unwrap();
+                web::Json(json!({
+                    "status": true,
+                    "error": {
+                        "code": 200,
+                        "message": "OK"
+                    },
+                    "query": {
+                        "id": query.id,
+                        "forecast": query.forecast
+                    },
+                    "data": parsed
+                }))
+            }
+
+        } else {
+            return web::Json(json!({
+                "status": false,
+                "error": {
+                    "code": 400,
+                    "message": "Bad Request - Invalid forecast (use 7d, 10d, etc.)",
+                },
+                "query": {
+                    "id": query.id,
+                    "forecast": query.forecast
+                },
+                "data": []
+            }))
+        }
+        
 
     } else {
         let client: Client = reqwest::Client::new();
@@ -115,13 +179,19 @@ async fn get_weather_data_by_id(query: web::Query<WeatherDataQuery>) -> impl Res
             "data": parsed
         }))
 
-
+ 
 
     }
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    // set global request useragent
+    reqwest::Client::builder()
+        .user_agent("TechBiscuit/WeatherAPI (1.0.0) +techbiscuit.co")
+        .build()
+        .unwrap();
+
     HttpServer::new(|| {
         App::new()
             .route("/", web::get().to(index))
